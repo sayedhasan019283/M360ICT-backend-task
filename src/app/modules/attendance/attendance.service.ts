@@ -72,8 +72,7 @@ export class AttendanceService {
   public async delete(id: number): Promise<void> {
     await knex(this.table).where({ id }).del();
   }
-
-  // Monthly attendance summary report
+    // Monthly attendance report
   public async getMonthlyAttendanceReport(month: string, employee_id?: number): Promise<any[]> {
     const startOfMonth = `${month}-01`;
     const endOfMonth = `${month}-31`; // Handle months with less than 31 days in the query logic

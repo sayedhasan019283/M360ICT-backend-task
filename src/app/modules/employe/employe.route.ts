@@ -15,6 +15,7 @@ const upload = fileUploadHandler(UPLOADS_FOLDER);
 // POST /employees -> create a new employee
 router.post(
     '/',
+    auth(USER_ROLE.hr),
     upload.single('photo_path'),
     // validateRequest(employeeValidation.createEmployeeSchema),
      EmployeeController.create
@@ -30,12 +31,14 @@ router.get(
 // GET /employees/:id -> get a single employee by ID
 router.get(
     '/:id',
+    auth(USER_ROLE.hr),
      EmployeeController.getById
     );
 
 // PUT /employees/:id -> update employee by ID
 router.put(
     '/:id',
+    auth(USER_ROLE.hr),
     upload.single('photo_path'),
     // validateRequest(employeeValidation.updateEmployeeSchema),
     EmployeeController.update
@@ -44,6 +47,7 @@ router.put(
 // DELETE /employees/:id -> delete employee by ID
 router.delete(
     '/:id',
+    auth(USER_ROLE.hr),
      EmployeeController.delete
     );
 

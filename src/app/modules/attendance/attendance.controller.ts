@@ -1,42 +1,46 @@
 import { Request, Response } from "express";
 import { AttendanceService } from "./attendance.service"; // Import service
-import sendResponse from "../../../shared/sendResponse"; // Assuming you have a helper for sending responses
+import { Attendance } from "./attendance.interface"; // Import the interface
 import { StatusCodes } from "http-status-codes"; // For HTTP status codes
+import sendResponse from "../../../shared/sendResponse"; // Assuming sendResponse utility
+import knex from "knex";
 
 const service = new AttendanceService();
 
 export class AttendanceController {
-  // Get all attendance entries with filters (employee_id, date, range)
+  // Get all attendance entries with filters (employee_id, date, range, or month)
   public async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const filters: any = {}; // Filters object to pass to the service
+      const filters = req.query; // Extract query parameters
 
-      // Extract query parameters
-      const { employee_id, date, range } = req.query;
+      // Parse range as an object with start and end dates if provided
+      const range = filters.range ? JSON.parse(filters.range as string) : undefined;
+      const month = filters.month as string | undefined;
 
-      // Add filters if they exist in the query
-      if (employee_id) filters.employee_id = parseInt(employee_id as string);
-      if (date) filters.date = date as string;
-      if (range) {
-        try {
-          filters.range = JSON.parse(range as string);
-        } catch (error) {
-          return sendResponse(res, {
-            code: StatusCodes.BAD_REQUEST,
-            message: "Invalid range format. Please provide valid JSON format.",
-          });
-        }
+      // If month is provided, fetch monthly data
+      if (month) {
+        // Fetch the monthly attendance summary
+        const attendanceSummary = await service.getMonthlyAttendanceReport(month, filters.employee_id ? parseInt(filters.employee_id as string) : undefined);
+
+        sendResponse(res, {
+          code: StatusCodes.OK,
+          message: "Monthly attendance report fetched successfully.",
+          data: attendanceSummary,
+        });
+      } else {
+        // Otherwise, fetch the filtered attendance list
+        const attendanceList = await service.getAll({
+          employee_id: filters.employee_id ? parseInt(filters.employee_id as string) : undefined,
+          date: filters.date ? (filters.date as string) : undefined,
+          range,
+        });
+
+        sendResponse(res, {
+          code: StatusCodes.OK,
+          message: "Attendance fetched successfully.",
+          data: attendanceList,
+        });
       }
-
-      // Get attendance data from the service with filters
-      const attendanceList = await service.getAll(filters);
-
-      // Send the filtered data as a response
-      sendResponse(res, {
-        code: StatusCodes.OK,
-        message: "Attendance fetched successfully.",
-        data: attendanceList,
-      });
     } catch (error) {
       sendResponse(res, {
         code: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -46,7 +50,7 @@ export class AttendanceController {
     }
   }
 
-  // Get a single attendance entry by ID
+  // Get attendance entry by ID
   public async getById(req: Request, res: Response): Promise<void> {
     try {
       const attendance = await service.getById(parseInt(req.params.id));
@@ -76,7 +80,7 @@ export class AttendanceController {
   // Create or upsert attendance
   public async upsert(req: Request, res: Response): Promise<void> {
     try {
-      const data = req.body; // Get the attendance data from the body
+      const data: Attendance = req.body; // Get the attendance data from the body
       const result = await service.upsert(data);
 
       sendResponse(res, {
@@ -96,7 +100,7 @@ export class AttendanceController {
   // Update attendance by ID
   public async update(req: Request, res: Response): Promise<void> {
     try {
-      const data = req.body;
+      const data: Partial<Attendance> = req.body;
       const result = await service.update(parseInt(req.params.id), data);
 
       if (!result) {
@@ -145,13 +149,14 @@ export class AttendanceController {
       const { month, employee_id } = req.query;
 
       if (!month) {
-        return sendResponse(res, {
+        sendResponse(res, {
           code: StatusCodes.BAD_REQUEST,
-          message: "Month is required. Please provide a valid month in YYYY-MM format.",
+          message: "Month parameter is required.",
         });
+        return;
       }
 
-      // Fetch the monthly attendance report from the service
+      // Fetch the monthly attendance report
       const report = await service.getMonthlyAttendanceReport(month as string, employee_id ? parseInt(employee_id as string) : undefined);
 
       sendResponse(res, {
