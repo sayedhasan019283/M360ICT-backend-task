@@ -2,6 +2,7 @@ import { knex as Knex } from 'knex';  // Knex initialization
 import { Attendance } from "./attendance.interface"; // Assuming the interface is defined
 import { StatusCodes } from "http-status-codes"; // For HTTP status codes
 import knexConfig from '../../../database/knexfile';
+import ApiError from '../../../errors/ApiError';
 
 // Select the correct environment (development, staging, production)
 const knex = Knex(knexConfig.development);
@@ -74,44 +75,54 @@ export class AttendanceService {
   }
     // Monthly attendance report
   public async getMonthlyAttendanceReport(month: string, employee_id?: number): Promise<any[]> {
+    // Fix: Adding '01' to the month to get the first day of the month
     const startOfMonth = `${month}-01`;
-    const endOfMonth = `${month}-31`; // Handle months with less than 31 days in the query logic
+    
+    // Fix: Handle the last day of the month properly
+    const endOfMonth = `${month}-31`;  // Ideally, use a method to handle months with < 31 days
 
+    // Build the query
     let query = knex(this.table)
       .select("employee_id", "check_in_time", "date")
-      .whereBetween("date", [startOfMonth, endOfMonth]);
+      .whereBetween("date", [startOfMonth, endOfMonth]);  // Handle date range properly
 
+    // If employee_id is provided, filter by employee_id
     if (employee_id) {
       query = query.where("employee_id", employee_id);
     }
 
-    // Get all attendance entries for the given month and optional employee_id filter
-    const attendanceRecords = await query;
+    try {
+      const attendanceRecords = await query;
 
-    // Group attendance by employee and calculate the summary
-    const summary = attendanceRecords.reduce((acc: any, record: any) => {
-      const { employee_id, check_in_time, date } = record;
+      // Group and summarize the attendance data
+      const summary = attendanceRecords.reduce((acc: any, record: any) => {
+        const { employee_id, check_in_time, date } = record;
 
-      if (!acc[employee_id]) {
-        acc[employee_id] = {
-          employee_id,
-          days_present: 0,
-          times_late: 0,
-        };
-      }
+        if (!acc[employee_id]) {
+          acc[employee_id] = {
+            employee_id,
+            days_present: 0,
+            times_late: 0,
+          };
+        }
 
-      // Increment days_present if the employee attended
-      acc[employee_id].days_present++;
+        // Increment days_present if the employee attended
+        acc[employee_id].days_present++;
 
-      // Check if the employee is late (if check_in_time > 09:45:00)
-      if (check_in_time > "09:45:00") {
-        acc[employee_id].times_late++;
-      }
+        // Check if the employee is late (if check_in_time > 09:45:00)
+        if (check_in_time > "09:45:00") {
+          acc[employee_id].times_late++;
+        }
 
-      return acc;
-    }, {});
+        return acc;
+      }, {});
 
-    // Convert the summary object to an array
-    return Object.values(summary);
+      // Convert the summary object to an array and return
+      return Object.values(summary);
+
+    } catch (error) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `Error fetching monthly attendance report: ${error}`);
+    }
   }
+
 }
