@@ -31,8 +31,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/v1', router);
 
 // live response
-app.get('/test', (req: Request, res: Response) => {
-  res.status(201).json({ message: 'Welcome to Backend Template Server' });
+app.get('/api/v1/test', (req: Request, res: Response) => {
+  res.status(200).json({ message: 'Welcome to Backend Template Server' });
 });
 
 // global error handle
