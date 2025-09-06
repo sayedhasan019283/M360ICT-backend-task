@@ -2,6 +2,8 @@ import express from "express";
 import { AttendanceController } from "./attendance.controller"; // Import AttendanceController
 import auth from "../../middlewares/auth";
 import { USER_ROLE } from "../user/user.constant";
+import validateRequest from "../../middlewares/validateRequest";
+import { attendanceValidation } from "./attendance.validation";
 
 const router = express.Router();
 const controller = new AttendanceController(); // Create an instance of the controller
@@ -20,11 +22,13 @@ router.get(
 router.post(
     "/",
     auth(USER_ROLE.hr),
+    // validateRequest(attendanceValidation.createAttendanceSchema),
      controller.upsert
     ); // Create or upsert attendance
 router.put(
     "/:id",
     auth(USER_ROLE.hr),
+    // validateRequest(attendanceValidation.updateAttendanceSchema),
      controller.update
     ); // Update attendance by ID
 router.delete(

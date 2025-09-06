@@ -4,6 +4,7 @@ import { Attendance } from "./attendance.interface"; // Import the interface
 import { StatusCodes } from "http-status-codes"; // For HTTP status codes
 import sendResponse from "../../../shared/sendResponse"; // Assuming sendResponse utility
 import knex from "knex";
+import { attendanceValidation } from "./attendance.validation";
 
 const service = new AttendanceService();
 
@@ -77,10 +78,21 @@ export class AttendanceController {
     }
   }
 
-  // Create or upsert attendance
+ // Create or upsert attendance
   public async upsert(req: Request, res: Response): Promise<void> {
     try {
-      const data: Attendance = req.body; // Get the attendance data from the body
+      // Validate the incoming request data using Joi schema
+      const { error } = attendanceValidation.createAttendanceSchema.validate(req.body);
+      
+      if (error) {
+        return sendResponse(res, {
+          code: StatusCodes.BAD_REQUEST,
+          message: "Invalid data provided.",
+          data: error.details,
+        });
+      }
+
+      const data = req.body; // Get the attendance data from the body
       const result = await service.upsert(data);
 
       sendResponse(res, {
@@ -100,6 +112,17 @@ export class AttendanceController {
   // Update attendance by ID
   public async update(req: Request, res: Response): Promise<void> {
     try {
+      // Validate the incoming request data using Joi schema
+      const { error } = attendanceValidation.updateAttendanceSchema.validate(req.body);
+      
+      if (error) {
+        return sendResponse(res, {
+          code: StatusCodes.BAD_REQUEST,
+          message: "Invalid data provided.",
+          data: error.details,
+        });
+      }
+
       const data: Partial<Attendance> = req.body;
       const result = await service.update(parseInt(req.params.id), data);
 
