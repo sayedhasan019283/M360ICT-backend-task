@@ -89,15 +89,17 @@ JWT_VERIFY_EMAIL_EXPIRATION_TIME=10m
 BCRYPT_SALT_ROUNDS=10
 ```
 
-4. Start the development server:
-```bash
-npm run dev
-```
-5. Create Table For development server:
+
+4. Create Table For development server:
 ```bash
 npm run migrate
 ```
-6. Seed data in DB table:
+5. Seed data in DB table:
 ```bash
 npm run seeder
+```
+
+6. Start the development server:
+```bash
+npm run dev
 ```
