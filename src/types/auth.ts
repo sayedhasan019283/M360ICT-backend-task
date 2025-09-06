@@ -1,6 +1,6 @@
 export interface ILogin {
   email: string;
-  password: string;
+  password_hash: string;
 }
 
 export interface IVerifyEmail {

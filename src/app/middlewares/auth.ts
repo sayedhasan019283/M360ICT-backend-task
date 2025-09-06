@@ -1,92 +1,69 @@
-import { NextFunction, Request, Response } from 'express';
-import { StatusCodes } from 'http-status-codes';
-import { Secret, TokenExpiredError } from 'jsonwebtoken';
-import config from '../../config';
-import ApiError from '../../errors/ApiError';
-import { jwtHelper } from '../../helpers/jwtHelper';
-import { roleRights } from './roles';
-import { User } from '../modules/user/user.model';
+import httpStatus from 'http-status'; 
+import { NextFunction, Request, Response } from "express";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { USER_ROLE } from "../modules/user/user.constant"; // Role definitions
+import { knex as Knex } from 'knex'; // Knex constructor
+import knexConfig from "../../database/knexfile";
+import config from "../../config";
+import AppError from "../../errors/AppError";
 
-const auth =
-  (...roles: string[]) =>
-    async (req: Request, res: Response, next: NextFunction) => {
-      try {
-        // Step 1: Get Authorization Header
-        console.log(req.headers.authorization)
-        const tokenWithBearer = req.headers.authorization;
-        console.log(tokenWithBearer)
-        if (!tokenWithBearer) {
-          throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
-        }
+// Select the correct environment (development, staging, production)
+const knex = Knex(knexConfig.development);
 
-        if (tokenWithBearer.startsWith('Bearer')) {
-          const token = tokenWithBearer.split(' ')[1];
-          try {
-            // Step 2: Verify Token
-            const verifyUser = jwtHelper.verifyToken(
-              token,
-              config.jwt.accessSecret as Secret
-            );
-            // console.log("verify user ---->>>> ", verifyUser)
-            // Step 3: Attach user to the request object
-            req.user = verifyUser;
-            
-            // Step 4: Check if the user exists and is active
-            const user = await User.findById(verifyUser.id);
-            // console.log("user ---->>>> ", user)
-            if (!user) {
-              throw new ApiError(StatusCodes.BAD_REQUEST, 'User not found.');
-            } else if (user.isDeleted) {
-              throw new ApiError(
-                StatusCodes.BAD_REQUEST,
-                'Your account has been deleted.'
-              );
-            } else if (user.isBlocked) {
-              throw new ApiError(
-                StatusCodes.BAD_REQUEST,
-                'Your account is blocked.'
-              );
-            } 
-            console.log("user ---->>>> step 5 ", user)
-            // Step 5: Role-based Authorization
-            console.log("roles------->>>>",roles)
-            if (roles.length) {
-              console.log("------------->>>>>>>",user)
-              const userRole = roleRights.get(user?.role);
-              console.log(userRole)
-              const hasRole = userRole?.some(role => roles.includes(role));
-              console.log(hasRole)
-              if (!hasRole) {
-                throw new ApiError(
-                  StatusCodes.FORBIDDEN,
-                  "You don't have permission to access this API"
-                );
-              }
-            }
+// Define the types for JWT payload
+interface JwtCustomPayload extends JwtPayload {
+  userId: number;
+  role: keyof typeof USER_ROLE;
+}
 
-            next();
-          } catch (err) {
-            // Handle Token Errors
-            if (err instanceof TokenExpiredError) {
-              throw new ApiError(
-                StatusCodes.UNAUTHORIZED,
-                'Your session has expired. Please log in again.'
-              );
-            }
-            // } else {
-            //   throw new ApiError(
-            //     StatusCodes.UNAUTHORIZED,
-            //     'Invalid token. Please log in again.'
-            //   );
-            // }
-          }
-        } else {
-          // If the token format is incorrect
-          throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid token format');
-        }
-      } catch (error) {
-        next(error); // Pass error to next middleware (usually the error handler)
+
+
+const auth = (...requiredRoles: (keyof typeof USER_ROLE)[]) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const rawToken = req.headers.authorization;
+      const token = rawToken?.split(' ')[1]; // Extract token
+
+      // Check if the token exists
+      if (!token) {
+        throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!');
       }
-    };
+
+      // Decode JWT token
+      const decoded = jwt.verify(token, config.db.jwt_secret as string) as JwtCustomPayload;
+
+      // Log decoded payload for debugging
+      console.log("Decoded token:", decoded);
+
+      const { id, role } = decoded;
+
+      if (!id) {
+        throw new AppError(httpStatus.UNAUTHORIZED, 'User ID is missing in token');
+      }
+
+      // Check if user exists
+      const user = await knex("hr_users").where({ id: id }).first();
+
+      if (!user) {
+        throw new AppError(httpStatus.UNAUTHORIZED, 'User not found');
+      }
+
+      // Check role permissions
+      if (requiredRoles.length && !requiredRoles.includes(role)) {
+        return res.status(403).send({
+          success: false,
+          statusCode: 403,
+          message: 'You have no access to this route',
+        });
+      }
+
+      req.user = decoded; // Attach user data to request
+      next();
+    } catch (error) {
+      next(error); // Pass error to the next error handler
+    }
+  };
+};
 
 export default auth;
+

@@ -4,6 +4,8 @@ import { EmployeeController } from './employe.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { employeeValidation } from './employe.validation';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
+import auth from '../../middlewares/auth';
+import { USER_ROLE } from '../user/user.constant';
 
 const router = Router();
 
@@ -21,6 +23,7 @@ router.post(
 // GET /employees -> get all employees
 router.get(
     '/',
+    auth(USER_ROLE.hr),
      EmployeeController.getAll
     );
 

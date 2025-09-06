@@ -56,28 +56,43 @@ export class EmployeeController {
 
 
   // Get all employees
-  static async getAll(req: Request, res: Response) {
-  try {
-    // Call the service to get all employees (no pagination or filtering)
-    const employees = await service.findAll();
+static async getAll(req: Request, res: Response) {
+    try {
+      const { limit, page, name, designation } = req.query;
 
-    // Send the result as a response
-    sendResponse(res, {
-        code : 200,
-        message : "Get All Employee Successfully",
-        data : employees
-      })
-  } catch (error) {
-    // Log the error for debugging
-    console.error(error);
+      // Set default values for pagination if not provided
+      const pageNum = page ? parseInt(page as string) : 1;
+      const pageSize = limit ? parseInt(limit as string) : 10;
 
-    sendResponse(res, {
-        code : 400,
-        message : "Didn't find any employee",
-        data : error
-      })
+      const filters: any = {};
+
+      if (name) filters.name = name as string;
+      if (designation) filters.designation = designation as string;
+
+      // Call the service to get all employees with filters and pagination
+      const employees = await service.findAll({
+        filters,
+        limit: pageSize,
+        page: pageNum,
+      });
+
+      // Send the result as a response
+      sendResponse(res, {
+        code: 200,
+        message: "Get All Employees Successfully",
+        data: employees,
+      });
+    } catch (error) {
+      // Log the error for debugging
+      console.error(error);
+
+      sendResponse(res, {
+        code: 400,
+        message: "Didn't find any employee",
+        data: error,
+      });
+    }
   }
-}
 
   // Get employee by ID
   static async getById(req: Request, res: Response) {

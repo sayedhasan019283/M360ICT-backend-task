@@ -9,5 +9,7 @@ export default {
   name: process.env.PG_DATABASE || 'm360ict_hr',
   url: process.env.DATABASE_URL,
   ssl: process.env.PG_SSL === 'true',
+  jwt_secret : process.env.JWT_SECRET || "b7d4672a3e0324f4f3e79b91d4d8f2f5ad90d2e35106c6b8a42358dbdd846b88",
+  jwt_expiration_time : process.env.JWT_EXPIRATION_TIME || "365d"
 }
 };

@@ -17,14 +17,34 @@ export class EmployeeService {
     return newEmployee;
   }
 
-  async findAll(): Promise<Employee[]> {
+  async findAll({
+    filters = {},
+    limit = 10,
+    page = 1,
+  }: {
+    filters?: any;
+    limit: number;
+    page: number;
+  }): Promise<Employee[]> {
     try {
-      // Fetch all employees from the 'employees' table
-      const results = await knex(this.table).select('*');  // Select all columns
+      let query = knex(this.table).select("*"); // Start with the base query
 
-      return results;  // Return the fetched records
+      // Apply filters if provided
+      if (filters.name) {
+        query = query.where("name", "like", `%${filters.name}%`);
+      }
+      if (filters.designation) {
+        query = query.where("designation", "like", `%${filters.designation}%`);
+      }
+
+      // Apply pagination (limit and offset)
+      query = query.limit(limit).offset((page - 1) * limit);
+
+      // Execute the query and return the results
+      const results = await query;
+      return results;
     } catch (error) {
-      throw new ApiError(StatusCodes.BAD_REQUEST ,`Error fetching all records from the 'employees' table: ${error}`);
+      throw new ApiError(StatusCodes.BAD_REQUEST, `Error fetching employees: ${error}`);
     }
   }
 
